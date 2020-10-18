@@ -1,0 +1,11 @@
+# Just for local development
+version: '3.2'
+services:
+  operator:
+    container_name: enonic-k8s-operador-dev
+    build:
+      context: .
+    image: 'enonic-k8s-operador-dev'
+    volumes:
+      - ~/.kube/config:/root/.kube/config
+      - ./src:/src
