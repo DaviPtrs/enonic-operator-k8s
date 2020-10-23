@@ -6,6 +6,6 @@ ADD requirements.txt /src
 
 RUN pip install -r requirements.txt
 
-ADD ./src/* /src
+ADD ./src/*.py /src/
 
 CMD kopf run init.py --verbose

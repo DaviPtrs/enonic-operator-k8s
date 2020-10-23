@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enonic-op-dev
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      application: enonic-op-dev
+  template:
+    metadata:
+      labels:
+        application: enonic-op-dev
+    spec:
+      serviceAccountName: enonic-op-dev-account
+      containers:
+      - name: the-only-one-dev
+        image: "localhost:5000/enonic-op:latest"
+        imagePullPolicy: Always
