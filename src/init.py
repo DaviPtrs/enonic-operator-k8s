@@ -18,13 +18,17 @@ def init_fn(name, namespace, **kwargs):
     exit_volume = {'name': 'exit-folder', 'emptyDir': {}}
     (statefulset.obj["spec"]["template"]["spec"]["volumes"]).append(exit_volume)
 
-    sidecar_container = {'name': 'enonic-sidecar', 'image': 'daviptrs/enonic-operator-k8s-sidecar:alpha','env': [{'name': 'ENONIC_AUTH', 'valueFrom': {'secretKeyRef': {'name': f'{name}-auth', 'key': 'auth'}}}], 'volumeMounts': [{'name': 'exit-folder','mountPath': '/exit'}]}
+    sidecar_container = {'name': 'enonic-sidecar', 'image': 'daviptrs/enonic-operator-k8s-sidecar:alpha', 'imagePullPolicy': 'Always','env': [{'name': 'ENONIC_AUTH', 'valueFrom': {'secretKeyRef': {'name': f'{name}-auth', 'key': 'auth'}}}], 'volumeMounts': [{'name': 'exit-folder','mountPath': '/exit'}]}
     (statefulset.obj['spec']['template']['spec']['containers']).append(sidecar_container)
 
     xp_pre_stop = {'exec': {'command': ['/bin/bash', '-c', 'while [ -z "$(ls /exit)" ];do sleep 1; done']}}
     if statefulset.obj['spec']['template']['spec']['containers'][0].get('lifecycle') is None:
         statefulset.obj['spec']['template']['spec']['containers'][0]['lifecycle'] = {}
     statefulset.obj['spec']['template']['spec']['containers'][0]['lifecycle']['preStop'] = xp_pre_stop
+
+    if statefulset.obj['spec']['template']['spec']['containers'][0].get('livenessProbe') is None:
+        xp_liveness = {'httpGet': {'path': '/cluster.elasticsearch', 'port': 2609}, 'failureThreshold': 2, 'initialDelaySeconds': 30, 'periodSeconds': 10}
+        statefulset.obj['spec']['template']['spec']['containers'][0]['livenessProbe'] = xp_liveness
 
     xp_exit_volume = {'name': 'exit-folder', 'mountPath': '/exit'}
     (statefulset.obj['spec']['template']['spec']['containers'][0]['volumeMounts']).append(xp_exit_volume)
