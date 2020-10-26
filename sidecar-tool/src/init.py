@@ -4,6 +4,21 @@ import time
 import requests as req
 import json
 from datetime import datetime
+from sys import stdout
+import logging as log
+
+# DEBUG = os.getenv("DEBUG")
+# if DEBUG:
+#     log_level = log.DEBUG
+# else:
+#     log_level = log.INFO
+log_level = log.DEBUG
+log.basicConfig(
+    stream=stdout,
+    level=log_level,
+    format="[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s",
+)
+log.info("Initializing global parameters")
 
 ENONIC_AUTH = os.getenv('ENONIC_AUTH', "su:password")
 
@@ -17,14 +32,14 @@ REPO_API = f"http://{XP_HOST}:{REPO_API_PORT}"
 
 def take_snapshot():
     if ENONIC_AUTH is None:
-        print("There's no Enonic auth information")
+        log.debug("There's no Enonic auth information")
         exit(1)
 
     auth = ENONIC_AUTH.split(':')
     auth = (auth[0], auth[1])
     r = req.get(REPO_API + "/repo/list", auth=auth)
     response = json.loads(r.text)
-    print(f"repo list\n{response}")
+    log.debug(f"repo list\n{response}")
     repoList = list()
 
     for repo in response['repositories']:
@@ -34,7 +49,7 @@ def take_snapshot():
         payload = {"repositoryId": repo}
 
         r = req.post(REPO_API + '/repo/snapshot', auth=auth, json=payload)
-        print(f"snapshot {repo}\n{r.text}")
+        log.debug(f"snapshot {repo}\n{r.text}")
 
 
 
@@ -60,15 +75,15 @@ def cluster_wait():
 def preStop():
     r = req.get(ES_API + '/cluster.elasticsearch')
     rJson = json.loads(r.text)
-    print(f"cluster info\n{rJson}")
+    log.debug(f"cluster info\n{rJson}")
     isMaster = rJson['localNode']['isMaster']
     numNodes = rJson['localNode']['numberOfNodesSeen']
 
     if isMaster == False or numNodes > 1:
-        print("cluster wait")
+        log.debug("cluster wait")
         cluster_wait()
     else:
-        print("snapshot init")
+        log.debug("snapshot init")
         take_snapshot()
 
 def get_exit_flag():
@@ -82,10 +97,10 @@ def set_exit_flag(flag: bool):
     else:
         if os.path.exists(path):
             os.remove(path)
-    print(f"exitflag = {flag}")
+    log.debug(f"exitflag = {flag}")
 
 def handle_sigterm(signalNumber, frame):
-    print("preStop init")
+    log.debug("preStop init")
     if not check_cluster_ready():
         set_exit_flag(True)
         exit(1)
@@ -95,7 +110,7 @@ def handle_sigterm(signalNumber, frame):
 
 def restore():
     if ENONIC_AUTH is None:
-        print("There's no Enonic auth information")
+        log.debug("There's no Enonic auth information")
         exit(1)
 
     auth = ENONIC_AUTH.split(':')
@@ -103,10 +118,10 @@ def restore():
 
     r = req.get(REPO_API + "/repo/snapshot/list", auth=auth)
     if r.status_code == 403:
-        print("Auth error")
+        log.debug("Auth error")
         exit(1)
         
-    print(f"snapshot list\n{r.text}")
+    log.debug(f"snapshot list\n{r.text}")
     snapshots = json.loads(r.text)['results']
     snapshotIds = list()
 
@@ -117,7 +132,7 @@ def restore():
         payload = {"snapshotName": snapshot}
 
         r = req.post(REPO_API + '/repo/snapshot/restore', auth=auth, json=payload)
-        print(f"snapshot {snapshot}\n{r.text}")
+        log.debug(f"snapshot {snapshot}\n{r.text}")
 
         time.sleep(3)
     
@@ -125,7 +140,7 @@ def restore():
     payload = {"snapshotNames": snapshotIds}
 
     r = req.post(REPO_API + '/repo/snapshot/delete', auth=auth, json=payload)
-    print(f"snapshot delete\n{r.text}")
+    log.debug(f"snapshot delete\n{r.text}")
 
 def check_cluster_ready():
     try:
@@ -139,13 +154,13 @@ def check_cluster_ready():
 def wait_ready_cluster():
     while True:
         ready = check_cluster_ready()
-        print(f"cluster ready: {ready}")
+        log.debug(f"cluster ready: {ready}")
         if ready:
             break
         time.sleep(10)
 
 def postStart():
-    print("postStart init")
+    log.debug("postStart init")
     set_exit_flag(True)
     wait_ready_cluster()
     set_exit_flag(False)
@@ -153,7 +168,7 @@ def postStart():
 
     r = req.get(ES_API + '/cluster.elasticsearch')
     isMaster = json.loads(r.text)['localNode']['isMaster']
-    print(f"Is master: {isMaster}")
+    log.debug(f"Is master: {isMaster}")
 
     if isMaster:
         restore()
@@ -162,12 +177,8 @@ def postStart():
 if __name__ == "__main__":
     sig.signal(sig.SIGTERM, handle_sigterm)
 
-    # output current process id
-    print('My PID is:', os.getpid())
-
     postStart()
 
-    # wait in an endless loop for signals 
     while True:
-        print("Waiting")
+        log.debug("Waiting for SIGTERM")
         time.sleep(3)
