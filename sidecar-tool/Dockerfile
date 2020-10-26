@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 
 ADD ./src/*.py /src/
 
-CMD python init.py
+CMD ["python", "-u", "init.py"]

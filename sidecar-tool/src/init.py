@@ -24,6 +24,7 @@ def take_snapshot():
     auth = (auth[0], auth[1])
     r = req.get(REPO_API + "/repo/list", auth=auth)
     response = json.loads(r.text)
+    print(f"repo list\n{response}")
     repoList = list()
 
     for repo in response['repositories']:
@@ -33,6 +34,7 @@ def take_snapshot():
         payload = {"repositoryId": repo}
 
         r = req.post(REPO_API + '/repo/snapshot', auth=auth, json=payload)
+        print(f"snapshot {repo}\n{r.text}")
 
 
 
@@ -58,13 +60,20 @@ def cluster_wait():
 def preStop():
     r = req.get(ES_API + '/cluster.elasticsearch')
     rJson = json.loads(r.text)
+    print(f"cluster info\n{rJson}")
     isMaster = rJson['localNode']['isMaster']
     numNodes = rJson['localNode']['numberOfNodesSeen']
 
     if isMaster == False or numNodes > 1:
+        print("cluster wait")
         cluster_wait()
     else:
+        print("snapshot init")
         take_snapshot()
+
+def get_exit_flag():
+    path = '/exit/1'
+    return os.path.exists(path)
 
 def set_exit_flag(flag: bool):
     path = '/exit/1'
@@ -73,8 +82,13 @@ def set_exit_flag(flag: bool):
     else:
         if os.path.exists(path):
             os.remove(path)
+    print(f"exitflag = {flag}")
 
 def handle_sigterm(signalNumber, frame):
+    print("preStop init")
+    if not check_cluster_ready():
+        set_exit_flag(True)
+        exit(1)
     preStop()
     set_exit_flag(True)
     exit(0)
@@ -88,6 +102,11 @@ def restore():
     auth = (auth[0], auth[1])
 
     r = req.get(REPO_API + "/repo/snapshot/list", auth=auth)
+    if r.status_code == 403:
+        print("Auth error")
+        exit(1)
+        
+    print(f"snapshot list\n{r.text}")
     snapshots = json.loads(r.text)['results']
     snapshotIds = list()
 
@@ -98,6 +117,7 @@ def restore():
         payload = {"snapshotName": snapshot}
 
         r = req.post(REPO_API + '/repo/snapshot/restore', auth=auth, json=payload)
+        print(f"snapshot {snapshot}\n{r.text}")
 
         time.sleep(3)
     
@@ -105,22 +125,35 @@ def restore():
     payload = {"snapshotNames": snapshotIds}
 
     r = req.post(REPO_API + '/repo/snapshot/delete', auth=auth, json=payload)
+    print(f"snapshot delete\n{r.text}")
+
+def check_cluster_ready():
+    try:
+        r = req.get(ES_API + '/cluster.elasticsearch')
+        if r.status_code == 200:
+            return True
+    except req.ConnectionError:
+        pass
+    return False
 
 def wait_ready_cluster():
     while True:
-        try:
-            r = req.get(ES_API + '/cluster.elasticsearch')
-            if r.status_code == 200:
-                break
-        except req.ConnectionError:
-            time.sleep(10)
+        ready = check_cluster_ready()
+        print(f"cluster ready: {ready}")
+        if ready:
+            break
+        time.sleep(10)
 
 def postStart():
-    set_exit_flag(False)
+    print("postStart init")
+    set_exit_flag(True)
     wait_ready_cluster()
+    set_exit_flag(False)
+    time.sleep(5)
 
     r = req.get(ES_API + '/cluster.elasticsearch')
     isMaster = json.loads(r.text)['localNode']['isMaster']
+    print(f"Is master: {isMaster}")
 
     if isMaster:
         restore()
