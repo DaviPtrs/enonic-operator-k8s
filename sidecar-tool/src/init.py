@@ -7,8 +7,7 @@ import time
 
 import requests as req
 
-# DEBUG = bool(os.getenv("DEBUG", "False"))
-DEBUG = True
+DEBUG = bool(os.getenv("DEBUG", "False"))
 if DEBUG:
     log_level = log.DEBUG
 else:
