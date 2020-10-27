@@ -7,11 +7,12 @@ from datetime import datetime
 from sys import stdout
 import logging as log
 
-# DEBUG = os.getenv("DEBUG")
-# if DEBUG:
-#     log_level = log.DEBUG
-# else:
-#     log_level = log.INFO
+# DEBUG = bool(os.getenv("DEBUG", "False"))
+DEBUG = True
+if DEBUG:
+    log_level = log.DEBUG
+else:
+    log_level = log.INFO
 log_level = log.DEBUG
 log.basicConfig(
     stream=stdout,
@@ -31,15 +32,16 @@ REPO_API_PORT = int(os.getenv('REPO_API_PORT', 4848))
 REPO_API = f"http://{XP_HOST}:{REPO_API_PORT}"
 
 def take_snapshot():
+    log.info("Initializing steps to create cluster snapshots")
     if ENONIC_AUTH is None:
-        log.debug("There's no Enonic auth information")
+        log.error("There's no Enonic auth information")
         exit(1)
 
     auth = ENONIC_AUTH.split(':')
     auth = (auth[0], auth[1])
     r = req.get(REPO_API + "/repo/list", auth=auth)
+    log.debug(f"Repository listing: {r.text}")
     response = json.loads(r.text)
-    log.debug(f"repo list\n{response}")
     repoList = list()
 
     for repo in response['repositories']:
@@ -48,24 +50,34 @@ def take_snapshot():
     for repo in repoList:
         payload = {"repositoryId": repo}
 
+        log.info(f"Snapshoting {repo}")
         r = req.post(REPO_API + '/repo/snapshot', auth=auth, json=payload)
-        log.debug(f"snapshot {repo}\n{r.text}")
+        if r.status_code == 200:
+            log.info(f"Repository {repo} snapshoted")
+        else:
+            log.error(f"Error to snapshot repository {repo}")
+        log.debug(f"Snapshot response: {r.text}")
 
 
 
 def check_cluster_health():
     r = req.get(ES_API + '/cluster.elasticsearch')
+    log.debug(f"Cluster info: {r.text}")
     health = json.loads(r.text)['state']
 
     r = req.get(ES_API + '/index')
+    log.debug(f"Index info: {r.text}")
     unassignedIndx = json.loads(r.text)['summary']['unassigned']
 
     if health == "GREEN" and int(unassignedIndx) == 0:
+        log.debug("Cluster is healthy")
         return True
     else:
+        log.debug("Cluster is unhealthy")
         return False
 
 def cluster_wait():
+    log.info("Waiting cluster to be healthy")
     while True:
         if check_cluster_health():
             break
@@ -73,17 +85,17 @@ def cluster_wait():
             time.sleep(15)
 
 def preStop():
+    log.debug("preStop function starting")
     r = req.get(ES_API + '/cluster.elasticsearch')
+    log.debug(f"Cluster info: {r.text}")
     rJson = json.loads(r.text)
-    log.debug(f"cluster info\n{rJson}")
     isMaster = rJson['localNode']['isMaster']
     numNodes = rJson['localNode']['numberOfNodesSeen']
 
     if isMaster == False or numNodes > 1:
-        log.debug("cluster wait")
+        log.info("There's no need to take snapshots")
         cluster_wait()
     else:
-        log.debug("snapshot init")
         take_snapshot()
 
 def get_exit_flag():
@@ -97,11 +109,12 @@ def set_exit_flag(flag: bool):
     else:
         if os.path.exists(path):
             os.remove(path)
-    log.debug(f"exitflag = {flag}")
+    log.debug(f"Setting exitFlag to {flag}")
 
 def handle_sigterm(signalNumber, frame):
-    log.debug("preStop init")
+    log.info("Exit signal received. Performing pre-stop operations.")
     if not check_cluster_ready():
+        log.warning("Cluster is not ready. Exiting without pre-tasks...")
         set_exit_flag(True)
         exit(1)
     preStop()
@@ -109,8 +122,9 @@ def handle_sigterm(signalNumber, frame):
     exit(0)
 
 def restore():
+    log.info("Starting to restore snapshots...")
     if ENONIC_AUTH is None:
-        log.debug("There's no Enonic auth information")
+        log.error("There's no Enonic auth information")
         exit(1)
 
     auth = ENONIC_AUTH.split(':')
@@ -118,10 +132,10 @@ def restore():
 
     r = req.get(REPO_API + "/repo/snapshot/list", auth=auth)
     if r.status_code == 403:
-        log.debug("Auth error")
+        log.error("Auth error")
         exit(1)
         
-    log.debug(f"snapshot list\n{r.text}")
+    log.debug(f"Snapshot list: {r.text}")
     snapshots = json.loads(r.text)['results']
     snapshotIds = list()
 
@@ -131,47 +145,62 @@ def restore():
     for snapshot in snapshotIds:
         payload = {"snapshotName": snapshot}
 
+        log.info(f"Restoring snapshot. Snapshot name: {snapshot}")
         r = req.post(REPO_API + '/repo/snapshot/restore', auth=auth, json=payload)
-        log.debug(f"snapshot {snapshot}\n{r.text}")
-
+        log.debug(f"Restore request result: {r.text}")
+        if r.status_code == 200:
+            log.info(f"Snapshot {snapshot} restored!")
+        else:
+            log.error(f"Failed to restore {snapshot}: {r.text}")
         time.sleep(3)
     
     # Delete restored snapshots
     payload = {"snapshotNames": snapshotIds}
 
+    log.info("Deleting remaining snapshots.")
     r = req.post(REPO_API + '/repo/snapshot/delete', auth=auth, json=payload)
-    log.debug(f"snapshot delete\n{r.text}")
+    if r.status_code == 200:
+        log.info("Snapshots deleted")
+    else:
+        log.error(f"Failed to delete snapshots: {r.text}")
+
+    log.debug(f"Snapshots deletion: {r.text}")
 
 def check_cluster_ready():
     try:
         r = req.get(ES_API + '/cluster.elasticsearch')
         if r.status_code == 200:
+            log.debug("Cluster is ready")
             return True
     except req.ConnectionError:
         pass
+    log.debug("Cluster is not ready")
     return False
 
 def wait_ready_cluster():
+    log.info("Waiting for cluster to be ready")
     while True:
-        ready = check_cluster_ready()
-        log.debug(f"cluster ready: {ready}")
-        if ready:
+        if check_cluster_ready():
             break
         time.sleep(10)
 
 def postStart():
-    log.debug("postStart init")
+    log.debug("postStart function starting")
     set_exit_flag(True)
     wait_ready_cluster()
     set_exit_flag(False)
     time.sleep(5)
 
+    log.info("Getting initial node information")
     r = req.get(ES_API + '/cluster.elasticsearch')
+    log.debug(f"Cluster info: {r.text}")
     isMaster = json.loads(r.text)['localNode']['isMaster']
-    log.debug(f"Is master: {isMaster}")
+    log.info(f"Node is master? {isMaster}")
 
     if isMaster:
         restore()
+    else:
+        log.info("No need to restore snapshots.")
 
 
 if __name__ == "__main__":
