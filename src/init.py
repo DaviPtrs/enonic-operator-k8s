@@ -4,7 +4,7 @@ import kopf
 import pykube as pk
 
 
-@kopf.on.create("apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT})
+@kopf.on.create("apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT, "enonic-operator-already-injected": kopf.ABSENT})
 def init_fn(name, namespace, logger, **kwargs):
     api = pk.HTTPClient(pk.KubeConfig.from_env())
     while True:
@@ -14,6 +14,9 @@ def init_fn(name, namespace, logger, **kwargs):
             break
         except pk.exceptions.ObjectDoesNotExist:
             pass
+
+    logger.debug("Adding \"enonic-operator-already-injected\" annotation")
+    statefulset.obj["metadata"]["annotations"]["enonic-operator-already-injected"] = ""
 
     logger.info("Preparing objects for injection")
     spec = statefulset.obj["spec"]["template"]["spec"]
