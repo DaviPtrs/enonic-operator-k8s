@@ -4,21 +4,22 @@ import kopf
 import pykube as pk
 
 
-@kopf.on.create(
-    "apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT}
-)
-def init_fn(name, namespace, **kwargs):
+@kopf.on.create("apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT})
+def init_fn(name, namespace, logger, **kwargs):
     api = pk.HTTPClient(pk.KubeConfig.from_env())
     while True:
+        logger.debug("Trying to fetch statefulset object json")
         try:
             statefulset = pk.StatefulSet.objects(api, namespace=namespace).get_by_name(name)
             break
         except pk.exceptions.ObjectDoesNotExist:
             pass
 
+    logger.info("Preparing objects for injection")
     spec = statefulset.obj["spec"]["template"]["spec"]
 
     exit_volume = {"name": "exit-folder", "emptyDir": {}}
+    logger.debug(f"Preparing volume object: {exit_volume}")
     spec["volumes"].append(exit_volume)
 
     sidecar_container = {
@@ -34,10 +35,11 @@ def init_fn(name, namespace, **kwargs):
         ],
         "volumeMounts": [{"name": "exit-folder", "mountPath": "/exit"}],
     }
+    logger.debug(f"Preparing sidecar container object: {sidecar_container}")
     spec["containers"].append(sidecar_container)
 
     xp_container = spec["containers"][0]
-    
+
     xp_pre_stop = {
         "exec": {
             "command": [
@@ -47,6 +49,7 @@ def init_fn(name, namespace, **kwargs):
             ]
         }
     }
+    logger.debug(f"Preparing preStop probe for xp container: {xp_pre_stop}")
 
     if xp_container.get("lifecycle") is None:
         xp_container["lifecycle"] = {}
@@ -59,10 +62,14 @@ def init_fn(name, namespace, **kwargs):
             "initialDelaySeconds": 30,
             "periodSeconds": 10,
         }
+        logger.debug(f"Preparing liveness probe for xp container: {xp_liveness}")
         xp_container["livenessProbe"] = xp_liveness
 
     xp_exit_volume = {"name": "exit-folder", "mountPath": "/exit"}
+    logger.debug(f"Preparing volume mounting for xp container: {xp_exit_volume}")
     xp_container["volumeMounts"].append(xp_exit_volume)
 
+    logger.info("Injecting sidecar container")
     statefulset.update()
+    logger.info("Injection has been successful")
     api.session.close()
