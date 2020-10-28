@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker build . -t localhost:5000/enonic-op:latest
+docker build . -f Dockerfile.dev -t localhost:5000/enonic-op:latest
 docker push localhost:5000/enonic-op:latest
 
 kubectl rollout restart deployment enonic-op-dev
