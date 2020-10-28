@@ -12,7 +12,6 @@ if DEBUG:
     log_level = log.DEBUG
 else:
     log_level = log.INFO
-log_level = log.DEBUG
 log.basicConfig(
     stream=sys.stdout,
     level=log_level,
