@@ -3,6 +3,7 @@ executors:
   docker:
     environment:
       SIDECAR_IMAGE: daviptrs/enonic-operator-k8s-sidecar
+      OPERATOR_IMAGE: daviptrs/enonic-operator-k8s
     docker:
       - image: circleci/buildpack-deps:stretch
 jobs:
@@ -11,7 +12,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Check if sidecar source code was changed
+          name: Check if sidecar source was changed
           command: |
             echo 'git diff --quiet HEAD~ sidecar-tool' >> script.sh
             echo 'if [ $? == 0 ]; then' >> script.sh
@@ -22,7 +23,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-{{ .Branch }}
+            - sidecar-{{ .Branch }}
       - run:
           name: Build Docker image
           command: |
@@ -31,7 +32,7 @@ jobs:
           name: Archive Docker image
           command: docker save -o sidecar.tar $SIDECAR_IMAGE
       - save_cache:
-          key: v1-{{ .Branch }}-{{ epoch }}
+          key: sidecar-{{ .Branch }}-{{ epoch }}
           paths:
             - ./sidecar.tar
       - persist_to_workspace:
@@ -54,9 +55,57 @@ jobs:
             docker tag $SIDECAR_IMAGE:latest $SIDECAR_IMAGE:alpha
             docker push $SIDECAR_IMAGE:alpha
             docker push $SIDECAR_IMAGE:latest
+  operator-build:
+    executor: docker
+    steps:
+      - checkout
+      - run:
+          name: Check if operator source was changed
+          command: |
+            echo 'git diff --quiet HEAD~ src Dockerfile' >> script.sh
+            echo 'if [ $? == 0 ]; then' >> script.sh
+            echo 'exit 1' >> script.sh
+            echo 'fi' >> script.sh
+            chmod +x script.sh
+            ./script.sh
+      - setup_remote_docker
+      - restore_cache:
+          keys:
+            - operator-{{ .Branch }}
+      - run:
+          name: Build Docker image
+          command: |
+            docker build . -t $OPERATOR_IMAGE:latest
+      - run:
+          name: Archive Docker image
+          command: docker save -o operator.tar $OPERATOR_IMAGE
+      - save_cache:
+          key: operator-{{ .Branch }}-{{ epoch }}
+          paths:
+            - ./operator.tar
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./operator.tar
+  operator-push:
+    executor: docker
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - setup_remote_docker
+      - run:
+          name: Load archived Docker image
+          command: docker load -i /tmp/workspace/operator.tar
+      - run:
+          name: Publish Docker Image to Docker Hub
+          command: |
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+            docker tag $OPERATOR_IMAGE:latest $OPERATOR_IMAGE:alpha
+            docker push $OPERATOR_IMAGE:alpha
+            docker push $OPERATOR_IMAGE:latest
 workflows:
   version: 2
-  build-main:
+  sidecar-pipeline:
     jobs:
       - sidecar-build:
           filters:
@@ -65,6 +114,18 @@ workflows:
       - sidecar-push:
           requires:
             - sidecar-build
+          filters:
+            branches:
+              only: main
+  operator-pipeline:
+    jobs:
+      - operator-build:
+          filters:
+            branches:
+              only: main
+      - operator-push:
+          requires:
+            - operator-build
           filters:
             branches:
               only: main
