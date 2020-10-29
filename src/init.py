@@ -27,7 +27,7 @@ def init_fn(name, namespace, logger, **kwargs):
 
     sidecar_container = {
         "name": "enonic-sidecar",
-        "image": "daviptrs/enonic-operator-k8s-sidecar:alpha",
+        "image": "daviptrs/enonic-operator-k8s-sidecar:latest",
         "imagePullPolicy": "Always",
         "env": [
             {"name": "DEBUG", "value": "False"},

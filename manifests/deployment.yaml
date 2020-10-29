@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enonic-operator
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      application: enonic-operator
+  template:
+    metadata:
+      labels:
+        application: enonic-operator
+    spec:
+      serviceAccountName: enonic-operator-account
+      containers:
+      - name: the-only-one-dev
+        image: daviptrs/enonic-operator-k8s:latest
+        imagePullPolicy: Always
