@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: enonic-op-dev-account
       containers:
-      - name: the-only-one-dev
+      - name: operator
         image: "localhost:5000/enonic-op:latest"
         imagePullPolicy: Always
         env:

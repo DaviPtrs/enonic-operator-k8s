@@ -69,7 +69,7 @@ spec:
     spec:
       serviceAccountName: enonic-operator-account
       containers:
-      - name: the-only-one-dev
+      - name: operator
         image: daviptrs/enonic-operator-k8s:latest
         imagePullPolicy: Always
         env:
