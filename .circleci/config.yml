@@ -11,15 +11,6 @@ jobs:
     executor: docker
     steps:
       - checkout
-      - run:
-          name: Check if sidecar source was changed
-          command: |
-            echo 'git diff --quiet HEAD~ sidecar-tool' >> script.sh
-            echo 'if [ $? == 0 ]; then' >> script.sh
-            echo 'exit 1' >> script.sh
-            echo 'fi' >> script.sh
-            chmod +x script.sh
-            ./script.sh
       - setup_remote_docker
       - restore_cache:
           keys:
@@ -59,15 +50,6 @@ jobs:
     executor: docker
     steps:
       - checkout
-      - run:
-          name: Check if operator source was changed
-          command: |
-            echo 'git diff --quiet HEAD~ src Dockerfile' >> script.sh
-            echo 'if [ $? == 0 ]; then' >> script.sh
-            echo 'exit 1' >> script.sh
-            echo 'fi' >> script.sh
-            chmod +x script.sh
-            ./script.sh
       - setup_remote_docker
       - restore_cache:
           keys:
