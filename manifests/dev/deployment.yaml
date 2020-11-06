@@ -19,3 +19,8 @@ spec:
       - name: the-only-one-dev
         image: "localhost:5000/enonic-op:latest"
         imagePullPolicy: Always
+        env:
+          - name: DEBUG
+            value: '1'
+          - name: QUIET
+            value: '0'

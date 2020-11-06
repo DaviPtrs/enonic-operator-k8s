@@ -4,8 +4,10 @@ WORKDIR /src
 
 ADD requirements.txt /src
 
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+ADD entrypoint.sh /
 
 ADD ./src/*.py /src/
 
-CMD kopf run init.py
+CMD /entrypoint.sh
