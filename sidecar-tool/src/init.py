@@ -20,6 +20,8 @@ log.basicConfig(
 log.info("Initializing global parameters")
 
 ENONIC_AUTH = os.getenv("ENONIC_AUTH", "su:password")
+ENONIC_AUTH.split(":")
+ENONIC_AUTH = (ENONIC_AUTH[0], ENONIC_AUTH[1])
 
 XP_HOST = os.getenv("XP_HOST", "localhost")
 
@@ -32,13 +34,8 @@ REPO_API = f"http://{XP_HOST}:{REPO_API_PORT}"
 
 def take_snapshot():
     log.info("Initializing steps to create cluster snapshots")
-    if ENONIC_AUTH is None:
-        log.error("There's no Enonic auth information")
-        exit(1)
 
-    auth = ENONIC_AUTH.split(":")
-    auth = (auth[0], auth[1])
-    r = req.get(REPO_API + "/repo/list", auth=auth)
+    r = req.get(REPO_API + "/repo/list", auth=ENONIC_AUTH)
     log.debug(f"Repository listing: {r.text}")
     response = json.loads(r.text)
     repoList = list()
@@ -50,7 +47,7 @@ def take_snapshot():
         payload = {"repositoryId": repo}
 
         log.info(f"Snapshoting {repo}")
-        r = req.post(REPO_API + "/repo/snapshot", auth=auth, json=payload)
+        r = req.post(REPO_API + "/repo/snapshot", auth=ENONIC_AUTH, json=payload)
         if r.status_code == 200:
             log.info(f"Repository {repo} snapshoted")
         else:
@@ -127,14 +124,8 @@ def handle_sigterm(signalNumber, frame):
 
 def restore():
     log.info("Starting to restore snapshots...")
-    if ENONIC_AUTH is None:
-        log.error("There's no Enonic auth information")
-        exit(1)
 
-    auth = ENONIC_AUTH.split(":")
-    auth = (auth[0], auth[1])
-
-    r = req.get(REPO_API + "/repo/snapshot/list", auth=auth)
+    r = req.get(REPO_API + "/repo/snapshot/list", auth=ENONIC_AUTH)
     if r.status_code == 403:
         log.error("Auth error")
         exit(1)
@@ -150,7 +141,7 @@ def restore():
         payload = {"snapshotName": snapshot}
 
         log.info(f"Restoring snapshot. Snapshot name: {snapshot}")
-        r = req.post(REPO_API + "/repo/snapshot/restore", auth=auth, json=payload)
+        r = req.post(REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload)
         log.debug(f"Restore request result: {r.text}")
         if r.status_code == 200:
             log.info(f"Snapshot {snapshot} restored!")
@@ -162,7 +153,7 @@ def restore():
     payload = {"snapshotNames": snapshotIds}
 
     log.info("Deleting remaining snapshots.")
-    r = req.post(REPO_API + "/repo/snapshot/delete", auth=auth, json=payload)
+    r = req.post(REPO_API + "/repo/snapshot/delete", auth=ENONIC_AUTH, json=payload)
     if r.status_code == 200:
         log.info("Snapshots deleted")
     else:
