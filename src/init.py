@@ -1,5 +1,3 @@
-import time
-
 import kopf
 import pykube as pk
 
@@ -10,21 +8,25 @@ def init_fn(name, namespace, logger, **kwargs):
     while True:
         logger.debug("Trying to fetch statefulset object json")
         try:
+            # Fetch statefulset object from Kubernetes api
             statefulset = pk.StatefulSet.objects(api, namespace=namespace).get_by_name(name)
             break
         except pk.exceptions.ObjectDoesNotExist:
             pass
 
     logger.debug("Adding \"enonic-operator-already-injected\" annotation")
+    # Adds annotation to flag that it was injected
     statefulset.obj["metadata"]["annotations"]["enonic-operator-already-injected"] = ""
 
     logger.info("Preparing objects for injection")
     spec = statefulset.obj["spec"]["template"]["spec"]
 
+    # Adds an emptyDir volume to store the exit flag for both containers
     exit_volume = {"name": "exit-folder", "emptyDir": {}}
     logger.debug(f"Preparing volume object: {exit_volume}")
     spec["volumes"].append(exit_volume)
 
+    # Sidecar container specs
     sidecar_container = {
         "name": "enonic-sidecar",
         "image": "daviptrs/enonic-operator-k8s-sidecar:latest",
@@ -39,10 +41,12 @@ def init_fn(name, namespace, logger, **kwargs):
         "volumeMounts": [{"name": "exit-folder", "mountPath": "/exit"}],
     }
     logger.debug(f"Preparing sidecar container object: {sidecar_container}")
+    # Adds the sidecar container to statefulset object
     spec["containers"].append(sidecar_container)
 
     xp_container = spec["containers"][0]
 
+    # Pre-stop definition to make Enonic XP container wait for the exit flag
     xp_pre_stop = {
         "exec": {
             "command": [
@@ -58,6 +62,8 @@ def init_fn(name, namespace, logger, **kwargs):
         xp_container["lifecycle"] = {}
     xp_container["lifecycle"]["preStop"] = xp_pre_stop
 
+    # If XP container doesn't already have a liveness probe using the ElasticSearch
+    # cluster status/health check, it will be added
     if xp_container.get("livenessProbe") is None:
         xp_liveness = {
             "httpGet": {"path": "/cluster.elasticsearch", "port": 2609},
@@ -68,6 +74,7 @@ def init_fn(name, namespace, logger, **kwargs):
         logger.debug(f"Preparing liveness probe for xp container: {xp_liveness}")
         xp_container["livenessProbe"] = xp_liveness
 
+    # Mount the exit volume on XP container
     xp_exit_volume = {"name": "exit-folder", "mountPath": "/exit"}
     logger.debug(f"Preparing volume mounting for xp container: {xp_exit_volume}")
     xp_container["volumeMounts"].append(xp_exit_volume)
