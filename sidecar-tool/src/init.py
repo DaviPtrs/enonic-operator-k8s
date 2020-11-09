@@ -57,14 +57,14 @@ def take_snapshot():
     r = req.get(REPO_API + "/repo/list", auth=ENONIC_AUTH)
     log.debug(f"Repository listing: {r.text}")
     response = json.loads(r.text)
-    repoList = list()
+    repo_list = list()
 
     # Getting the repo ids
     for repo in response["repositories"]:
-        repoList.append(repo["id"])
+        repo_list.append(repo["id"])
 
     # For each repository, snapshoot it!
-    for repo in repoList:
+    for repo in repo_list:
         payload = {"repositoryId": repo}
 
         log.info(f"Snapshoting {repo}")
@@ -75,20 +75,26 @@ def take_snapshot():
             log.error(f"Error to snapshot repository {repo}")
         log.debug(f"Snapshot response: {r.text}")
 
+def get_cluster_info():
+    r = req.get(ES_API + "/cluster.elasticsearch")
+    log.debug(f"Cluster info: {r.text}")
+    r_json = json.loads(r.text)
+    return r_json
+
+
 # Returns a boolean that refers to the ES Cluster health
 # The cluster will be healthy if the Monitoring API indicates:
 # - that the health is GREEN
 # - that the unassigned indexes are 0
 def check_cluster_health():
-    r = req.get(ES_API + "/cluster.elasticsearch")
-    log.debug(f"Cluster info: {r.text}")
-    health = json.loads(r.text)["state"]
+    r_json = get_cluster_info()
+    health = r_json["state"]
 
     r = req.get(ES_API + "/index")
     log.debug(f"Index info: {r.text}")
-    unassignedIndex = json.loads(r.text)["summary"]["unassigned"]
+    unassigned_index = json.loads(r.text)["summary"]["unassigned"]
 
-    if health == "GREEN" and int(unassignedIndex) == 0:
+    if health == "GREEN" and int(unassigned_index) == 0:
         log.debug("Cluster is healthy")
         return True
     else:
@@ -108,15 +114,13 @@ def wait_cluster_health():
 # If the ES node (Enonic replica) is master and it's the only one
 # in the cluster, then take snapshots. 
 # Otherwise, it waits the cluster to be healthy before leaving it
-def preStop():
-    log.debug("preStop function starting")
-    r = req.get(ES_API + "/cluster.elasticsearch")
-    log.debug(f"Cluster info: {r.text}")
-    rJson = json.loads(r.text)
-    isMaster = rJson["localNode"]["isMaster"]
-    numNodes = rJson["localNode"]["numberOfNodesSeen"]
+def pre_stop():
+    log.debug("pre_stop function starting")
+    r_json = get_cluster_info()
+    is_master = r_json["localNode"]["isMaster"]
+    num_nodes = r_json["localNode"]["numberOfNodesSeen"]
 
-    if not isMaster or numNodes > 1:
+    if not is_master or num_nodes > 1:
         log.info("There's no need to take snapshots")
         wait_cluster_health()
     else:
@@ -143,7 +147,7 @@ def set_exit_flag(flag: bool):
 
 
 # Function to handle with SIGTERM signal
-# It calls preStop function before telling the application
+# It calls pre_stop function before telling the application
 # that it can be terminated
 def handle_sigterm(signalNumber, frame):
     log.info("Exit signal received. Performing pre-stop operations.")
@@ -154,14 +158,14 @@ def handle_sigterm(signalNumber, frame):
         set_exit_flag(True)
         exit(1)
 
-    preStop()
+    pre_stop()
     set_exit_flag(True)
     exit(0)
 
 
 # Delete snapshots given the list of snapshots ids
-def delete_snapshots(snapshotIds):
-    payload = {"snapshotNames": snapshotIds}
+def delete_snapshots(snapshot_ids):
+    payload = {"snapshotNames": snapshot_ids}
 
     log.info("Deleting remaining snapshots.")
     r = req.post(REPO_API + "/repo/snapshot/delete", auth=ENONIC_AUTH, json=payload)
@@ -197,19 +201,19 @@ def restore():
 
     log.debug(f"Snapshot list: {r.text}")
     snapshots = json.loads(r.text)["results"]
-    snapshotIds = list()
+    snapshot_ids = list()
 
     # Getting only the snapshots ids
     for snapshot in snapshots:
-        snapshotIds.append(snapshot["name"])
+        snapshot_ids.append(snapshot["name"])
 
     # For each snapshot, restore it
-    for snapshot in snapshotIds:
+    for snapshot in snapshot_ids:
         restore_snapshot(snapshot)
         time.sleep(3)
 
     # Delete restored snapshots
-    delete_snapshots(snapshotIds)
+    delete_snapshots(snapshot_ids)
 
 
 # Check if the cluster is ready to receive requests
@@ -234,8 +238,8 @@ def wait_ready_cluster():
         time.sleep(10)
 
 # Define all tasks to be performed just on the application startup
-def postStart():
-    log.debug("postStart function starting")
+def post_start():
+    log.debug("post_start function starting")
 
     # Set the exit flag to allow the application to be killed
     # if the cluster doesn't get ready 
@@ -247,13 +251,12 @@ def postStart():
 
     # Get the info if the actual ES node is master or not
     log.info("Getting initial node information")
-    r = req.get(ES_API + "/cluster.elasticsearch")
-    log.debug(f"Cluster info: {r.text}")
-    isMaster = json.loads(r.text)["localNode"]["isMaster"]
-    log.info(f"Node is master? {isMaster}")
+    r_json = get_cluster_info()
+    is_master = r_json["localNode"]["isMaster"]
+    log.info(f"Node is master? {is_master}")
 
     # If is master then restore the snapshots
-    if isMaster:
+    if is_master:
         restore()
     else:
         log.info("No need to restore snapshots.")
@@ -263,7 +266,7 @@ if __name__ == "__main__":
     # Register SIGTERM with the function  "handle_sigterm" to be executed
     sig.signal(sig.SIGTERM, handle_sigterm)
 
-    postStart()
+    post_start()
 
     while True:
         log.debug("Waiting for SIGTERM")
