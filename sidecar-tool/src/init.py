@@ -92,7 +92,7 @@ def preStop():
     isMaster = rJson["localNode"]["isMaster"]
     numNodes = rJson["localNode"]["numberOfNodesSeen"]
 
-    if isMaster == False or numNodes > 1:
+    if not isMaster or numNodes > 1:
         log.info("There's no need to take snapshots")
         cluster_wait()
     else:
