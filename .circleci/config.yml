@@ -43,8 +43,9 @@ jobs:
           name: Publish Docker Image to Docker Hub
           command: |
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
-            docker tag $SIDECAR_IMAGE:latest $SIDECAR_IMAGE:alpha
-            docker push $SIDECAR_IMAGE:alpha
+            VERSION=${CIRCLE_TAG/sidecar-v/''}
+            docker tag $SIDECAR_IMAGE:latest $SIDECAR_IMAGE:$VERSION
+            docker push $SIDECAR_IMAGE:$VERSION
             docker push $SIDECAR_IMAGE:latest
   operator-build:
     executor: docker
@@ -82,8 +83,9 @@ jobs:
           name: Publish Docker Image to Docker Hub
           command: |
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
-            docker tag $OPERATOR_IMAGE:latest $OPERATOR_IMAGE:alpha
-            docker push $OPERATOR_IMAGE:alpha
+            VERSION=${CIRCLE_TAG/operator-v/''}
+            docker tag $OPERATOR_IMAGE:latest $OPERATOR_IMAGE:$VERSION
+            docker push $OPERATOR_IMAGE:$VERSION
             docker push $OPERATOR_IMAGE:latest
 workflows:
   version: 2
