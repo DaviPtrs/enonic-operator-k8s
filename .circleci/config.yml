@@ -91,23 +91,31 @@ workflows:
     jobs:
       - sidecar-build:
           filters:
+            tags:
+              only: /^sidecar-v.*/
             branches:
-              only: main
+              ignore: /.*/
       - sidecar-push:
           requires:
             - sidecar-build
           filters:
+            tags:
+              only: /^sidecar-v.*/
             branches:
-              only: main
+              ignore: /.*/
   operator-pipeline:
     jobs:
       - operator-build:
           filters:
+            tags:
+              only: /^operator-v.*/
             branches:
-              only: main
+              ignore: /.*/
       - operator-push:
           requires:
             - operator-build
           filters:
+            tags:
+              only: /^operator-v.*/
             branches:
-              only: main
+              ignore: /.*/
