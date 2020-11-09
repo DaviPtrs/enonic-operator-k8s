@@ -96,7 +96,7 @@ def check_cluster_health():
         return False
 
 # Self explanatory (or explained by the logging message)
-def cluster_wait():
+def wait_cluster_health():
     log.info("Waiting cluster to be healthy")
     while True:
         if check_cluster_health():
@@ -118,7 +118,7 @@ def preStop():
 
     if not isMaster or numNodes > 1:
         log.info("There's no need to take snapshots")
-        cluster_wait()
+        wait_cluster_health()
     else:
         take_snapshot()
 
@@ -159,6 +159,33 @@ def handle_sigterm(signalNumber, frame):
     exit(0)
 
 
+# Delete snapshots given the list of snapshots ids
+def delete_snapshots(snapshotIds):
+    payload = {"snapshotNames": snapshotIds}
+
+    log.info("Deleting remaining snapshots.")
+    r = req.post(REPO_API + "/repo/snapshot/delete", auth=ENONIC_AUTH, json=payload)
+    if r.status_code == 200:
+        log.info("Snapshots deleted")
+    else:
+        log.error(f"Failed to delete snapshots: {r.text}")
+
+    log.debug(f"Snapshots deletion: {r.text}")
+
+# Restore a snapshot given the snapshot id
+def restore_snapshot(snapshot_id):
+    payload = {"snapshotName": snapshot_id}
+
+    log.info(f"Restoring snapshot. Snapshot name: {snapshot_id}")
+    r = req.post(REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload)
+
+    log.debug(f"Restore request result: {r.text}")
+
+    if r.status_code == 200:
+        log.info(f"Snapshot {snapshot_id} restored!")
+    else:
+        log.error(f"Failed to restore {snapshot_id}: {r.text}")
+
 # Fetch all snapshots and restore all of them
 def restore():
     log.info("Starting to restore snapshots...")
@@ -178,29 +205,11 @@ def restore():
 
     # For each snapshot, restore it
     for snapshot in snapshotIds:
-        payload = {"snapshotName": snapshot}
-
-        log.info(f"Restoring snapshot. Snapshot name: {snapshot}")
-        r = req.post(REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload)
-        log.debug(f"Restore request result: {r.text}")
-        if r.status_code == 200:
-            log.info(f"Snapshot {snapshot} restored!")
-        else:
-            log.error(f"Failed to restore {snapshot}: {r.text}")
+        restore_snapshot(snapshot)
         time.sleep(3)
 
     # Delete restored snapshots
-    # TODO: create a separate function to delete snapshots
-    payload = {"snapshotNames": snapshotIds}
-
-    log.info("Deleting remaining snapshots.")
-    r = req.post(REPO_API + "/repo/snapshot/delete", auth=ENONIC_AUTH, json=payload)
-    if r.status_code == 200:
-        log.info("Snapshots deleted")
-    else:
-        log.error(f"Failed to delete snapshots: {r.text}")
-
-    log.debug(f"Snapshots deletion: {r.text}")
+    delete_snapshots(snapshotIds)
 
 
 # Check if the cluster is ready to receive requests
