@@ -16,13 +16,17 @@ This operator injects a sidecar container that perform snapshots on tier down an
 
     You maybe will need to run this command twice to make sure that all resources are created.
 
-
-    `kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/init/peering.yaml`
+    ```bash
+    kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/init/peering.yaml
+    ```
 
 
 -   Install the operator by the following command
     
-    `kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/manifests/manifest.yaml`
+    ```bash
+    kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/manifests/manifest.yaml
+    ```
+    ``
 
 
 ### Making run with Enonic XP applications
