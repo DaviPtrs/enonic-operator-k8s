@@ -30,9 +30,17 @@ This operator injects a sidecar container that performs snapshots on tier down a
 
 ### Making run with Enonic XP applications
 
+#### Initial Considerations
+
 -   Your Enonic XP app must be deployed as a StatefulSet (because Enonic uses Elastic Search to manage all the data, and ES clusters are Stateful). 
   
 -   It's highly recommended reading this guide that shows how to deploy an Enonic XP app properly on Kubernetes. (Link coming soon)
+
+-   **Don't apply the StatefulSet with more than 1 replica**, because it may cause an unwanted multi ES cluster being formed. If you want to initialize your application with multi replicas, you need to deploy with just 1 replica and then after the injection, you can scale up your application using `kubectl scale`
+
+-   The injection will add a sidecar container, so if your original pod contains 1 container, the injected pod will have 2 containers. Wait for the injection happens before doing anything in your app.
+
+#### Steps
    
 -   Create a generic secret named with this pattern
 
@@ -90,6 +98,20 @@ This operator injects a sidecar container that performs snapshots on tier down a
 
 -   Now you can apply/update the StatefulSet and see the magic happening.
 
+## Debugging
+
+When you try to edit the StatefulSet (after the injection), you will see something like this:
+
+```yaml
+  - name: enonic-sidecar
+    image: daviptrs/enonic-operator-k8s-sidecar:latest
+    imagePullPolicy: Always
+    env: 
+      - name: "DEBUG"
+        value: "False"
+```
+
+To enable debugging mode on sidecar container, change the DEBUG value from `"False"` to `"True"` (including quotes)
 
 ## Contribute
 
