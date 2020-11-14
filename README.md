@@ -34,7 +34,7 @@ This operator injects a sidecar container that performs snapshots on tier down a
 
 -   Your Enonic XP app must be deployed as a StatefulSet (because Enonic uses Elastic Search to manage all the data, and ES clusters are Stateful). 
   
--   It's highly recommended reading this guide that shows how to deploy an Enonic XP app properly on Kubernetes. (Link coming soon)
+-   It's highly recommended reading [this guide](https://github.com/DaviPtrs/enonic-xp-kubernetes/blob/main/README.md) that shows how to deploy an Enonic XP app properly on Kubernetes.
 
 -   **Don't apply the StatefulSet with more than 1 replica**, because it may cause an unwanted multi ES cluster being formed. If you want to initialize your application with multi replicas, you need to deploy with just 1 replica and then after the injection, you can scale up your application using `kubectl scale`
 
