@@ -89,3 +89,19 @@ This operator injects a sidecar container that performs snapshots on tier down a
 -   Last but not less (or something like that), the Enonic XP application container **MUST BE** the first container in StatefulSet manifest.
 
 -   Now you can apply/update the StatefulSet and see the magic happening.
+
+
+## Contribute
+
+Contributions are always welcome!
+If you need some light, read some of the following guides: 
+- [The beginner's guide to contributing to a GitHub project](https://akrabat.com/the-beginners-guide-to-contributing-to-a-github-project/)
+- [First Contributions](https://github.com/firstcontributions/first-contributions)
+- [How to contribute to open source](https://github.com/freeCodeCamp/how-to-contribute-to-open-source)
+- [How to contribute to a project on Github](https://gist.github.com/MarcDiethelm/7303312)
+
+## Submit Feedback
+
+Be free to [open an issue](https://github.com/DaviPtrs/hass-unified-remote/issues/new/choose) telling your experience, suggesting new features or asking questions (there's no stupid questions, but make sure that yours cannot be answered by just reading the docs)
+
+You can also find me on LinkedIn [/in/davipetris](https://www.linkedin.com/in/davipetris/)
