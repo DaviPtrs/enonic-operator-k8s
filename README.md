@@ -1,8 +1,17 @@
 # Enonic Operator for k8s
 
-## Overview
-
 Enonic operator (unofficial) is a Kubernetes operator that allows Enonic XP apps to run properly on a scalable environment, without losing data shards or getting the cluster crashed when scale-up and scale-down events happen.
+
+- [Enonic Operator for k8s](#enonic-operator-for-k8s)
+  - [How does it work](#how-does-it-work)
+  - [Getting started](#getting-started)
+    - [Installing the operator](#installing-the-operator)
+    - [Making run with Enonic XP applications](#making-run-with-enonic-xp-applications)
+      - [Initial Considerations](#initial-considerations)
+      - [Steps](#steps)
+  - [Debugging](#debugging)
+  - [Contribute](#contribute)
+  - [Submit Feedback](#submit-feedback)
 
 ## How does it work
 
