@@ -43,7 +43,7 @@ This operator injects a sidecar container that performs snapshots on tier down a
 
 -   Your Enonic XP app must be deployed as a StatefulSet (because Enonic uses Elastic Search to manage all the data, and ES clusters are Stateful). 
   
--   It's highly recommended reading [this guide](https://github.com/DaviPtrs/enonic-xp-kubernetes/blob/main/README.md) that shows how to deploy an Enonic XP app properly on Kubernetes.
+-   It's highly recommended reading [this guide](https://github.com/DaviPtrs/enonic-xp-kubernetes) that shows how to deploy an Enonic XP app properly on Kubernetes.
 
 -   **Don't apply the StatefulSet with more than 1 replica**, because it may cause an unwanted multi ES cluster being formed. If you want to initialize your application with multi replicas, you need to deploy with just 1 replica and then after the injection, you can scale up your application using `kubectl scale`
 
@@ -133,6 +133,6 @@ If you need some light, read some of the following guides:
 
 ## Submit Feedback
 
-Be free to [open an issue](https://github.com/DaviPtrs/hass-unified-remote/issues/new/choose) telling your experience, suggesting new features or asking questions (there's no stupid questions, but make sure that yours cannot be answered by just reading the docs)
+Be free to [open an issue](https://github.com/DaviPtrs/enonic-operator-k8s/issues/new/choose) telling your experience, suggesting new features or asking questions (there's no stupid questions, but make sure that yours cannot be answered by just reading the docs)
 
 You can also find me on LinkedIn [/in/davipetris](https://www.linkedin.com/in/davipetris/)
