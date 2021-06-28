@@ -4,11 +4,12 @@ import os
 import signal as sig
 import sys
 import time
+from distutils.util import strtobool
 
 import requests as req
 
 # Handles with DEBUG environment variable to change the logging level
-DEBUG = bool(os.getenv("DEBUG", "False"))
+DEBUG = bool(strtobool(os.getenv("DEBUG", "False")))
 if DEBUG:
     log_level = log.DEBUG
 else:
