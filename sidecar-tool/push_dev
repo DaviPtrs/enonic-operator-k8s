@@ -1,0 +1,3 @@
+#!/bin/bash
+docker build . -t daviptrs/enonic-operator-k8s-sidecar:dev
+docker push daviptrs/enonic-operator-k8s-sidecar:dev
