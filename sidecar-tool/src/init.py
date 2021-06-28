@@ -25,7 +25,7 @@ log.info("Initializing global parameters")
 # Needed to handle with repository related operations
 # (listing repos, restoring snapshots, etc...)
 ENONIC_AUTH = os.getenv("ENONIC_AUTH", "su:password")
-ENONIC_AUTH.split(":")
+ENONIC_AUTH = ENONIC_AUTH.split(":")
 ENONIC_AUTH = (ENONIC_AUTH[0], ENONIC_AUTH[1])
 
 # Enonic XP host ip
