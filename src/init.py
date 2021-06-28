@@ -1,5 +1,6 @@
 import kopf
 import pykube as pk
+import logging
 
 
 @kopf.on.create("apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT, "enonic-operator-already-injected": kopf.ABSENT})
@@ -32,7 +33,7 @@ def init_fn(name, namespace, logger, **kwargs):
         "image": "daviptrs/enonic-operator-k8s-sidecar:latest",
         "imagePullPolicy": "Always",
         "env": [
-            {"name": "DEBUG", "value": "False"},
+            {"name": "DEBUG", "value": str(logger.getEffectiveLevel() == logging.DEBUG)},
             {
                 "name": "ENONIC_AUTH",
                 "valueFrom": {"secretKeyRef": {"name": f"{name}-auth", "key": "auth"}},
