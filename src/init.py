@@ -4,6 +4,11 @@ import logging
 import os
 import yaml
 
+def get_template(template_name):
+    path = os.path.join(os.path.dirname(__file__), f'templates/{template_name}')
+    tmpl = open(path, 'rt').read()
+    return tmpl
+
 @kopf.on.field('batch', 'v1', 'jobs', "status", annotations={"enonic-operator-managed": kopf.PRESENT})
 def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
     logger.debug(f"New status: {new}")
@@ -22,8 +27,7 @@ def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
 @kopf.on.create('kopf.enonic', 'v1', 'enonicxpapps')
 @kopf.on.update('kopf.enonic', 'v1', 'enonicxpapps')
 def xp_app_handler(spec, name, namespace, logger, **kwargs):
-    path = os.path.join(os.path.dirname(__file__), 'templates/app-installer-job.yaml')
-    tmpl = open(path, 'rt').read()
+    tmpl = get_template("app-installer-job.yaml")
     text = tmpl.format(
         name = name, 
         namespace = namespace,
@@ -75,19 +79,10 @@ def init_fn(name, namespace, logger, **kwargs):
     spec["volumes"].append(exit_volume)
 
     # Sidecar container specs
-    sidecar_container = {
-        "name": "enonic-sidecar",
-        "image": "daviptrs/enonic-operator-k8s-sidecar:latest",
-        "imagePullPolicy": "Always",
-        "env": [
-            {"name": "DEBUG", "value": str(logger.getEffectiveLevel() == logging.DEBUG)},
-            {
-                "name": "ENONIC_AUTH",
-                "valueFrom": {"secretKeyRef": {"name": f"{name}-auth", "key": "auth"}},
-            },
-        ],
-        "volumeMounts": [{"name": "exit-folder", "mountPath": "/exit"}],
-    }
+    debug = str(logger.getEffectiveLevel() == logging.DEBUG)
+    tmpl = get_template("sidecar-container.yaml")
+    text = tmpl.format(name=name, debug=debug)
+    sidecar_container = yaml.safe_load(text)
     logger.debug(f"Preparing sidecar container object: {sidecar_container}")
     # Adds the sidecar container to statefulset object
     spec["containers"].append(sidecar_container)
