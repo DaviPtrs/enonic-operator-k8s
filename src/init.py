@@ -20,21 +20,23 @@ def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
 
     if 'succeeded' in new.keys() or 'failed' in new.keys():
         api = pk.HTTPClient(pk.KubeConfig.from_env())
-        parent = (EnonicXpApp.objects(api, namespace=namespace).get_by_name(name)).obj
-        obj_name = parent['spec']['object']['name']
+        parent = (EnonicXpApp.objects(api, namespace=namespace).get_by_name(name))
+        obj_name = parent.obj['spec']['object']['name']
 
         logger.debug(f"New status: {new}")
         result = new.get('succeeded')
 
         if result is not None and result == 1:
             logger.debug(f"Deleting succeeded {namespace}/{name} job.")
-            kopf.event(parent, type='Success', reason='Logging', message=f"{obj_name} installed successfully.")
+            kopf.event(parent.obj, type='Success', reason='Logging', message=f"{obj_name} installed successfully.")
+            parent.patch({'status': {'xp_app_handler/spec': "Success"}})
             job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
             job.delete(propagation_policy="Foreground")
         else:
             result = new.get('failed')
             if result is not None and result == 1:
-                kopf.event(parent, type='Failure', reason='Logging', message=f"{obj_name} could not be installed.")
+                kopf.event(parent.obj, type='Failure', reason='Logging', message=f"{obj_name} could not be installed.")
+                parent.patch({'status': {'xp_app_handler/spec': "Failure"}})
                 logger.error(f"{namespace}/{name} job is failing. Check the logs!")
 
 
@@ -65,6 +67,8 @@ def xp_app_handler(body, spec, name, namespace, logger, **kwargs):
         pass
     logger.info(f"Creating installer job: {namespace}/{name}.")
     pk.Job(api, data).create()
+
+    return "Pending"
 
 
 
