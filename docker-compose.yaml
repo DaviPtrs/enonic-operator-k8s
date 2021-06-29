@@ -6,6 +6,8 @@ services:
     build:
       context: .
     image: 'enonic-k8s-operador-dev'
+    environment:
+      DEBUG: 1
     network_mode: host
     volumes:
       - ~/.kube/config:/root/.kube/config
