@@ -1,6 +1,53 @@
 import kopf
 import pykube as pk
 import logging
+import os
+import yaml
+
+@kopf.on.field('batch', 'v1', 'jobs', "status", annotations={"enonic-operator-managed": kopf.PRESENT})
+def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
+    logger.debug(f"New status: {new}")
+    result = new.get('succeeded')
+    if result is not None and result == 1:
+        logger.debug(f"Deleting succeeded {namespace}/{name} job.")
+        api = pk.HTTPClient(pk.KubeConfig.from_env())
+        job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
+        job.delete(propagation_policy="Foreground")
+    else:
+        result = new.get('failed')
+        if result is not None and result == 1:
+            logger.error(f"{namespace}/{name} job is failing. Check the logs!")
+
+
+@kopf.on.create('kopf.enonic', 'v1', 'enonicxpapps')
+@kopf.on.update('kopf.enonic', 'v1', 'enonicxpapps')
+def xp_app_handler(spec, name, namespace, logger, **kwargs):
+    path = os.path.join(os.path.dirname(__file__), 'templates/app-installer-job.yaml')
+    tmpl = open(path, 'rt').read()
+    text = tmpl.format(
+        name = name, 
+        namespace = namespace,
+        url = spec.get('bucket').get('url'),
+        url_sufix = spec.get('bucket').get('url_sufix'),
+        object_name = spec.get('object').get('name'),
+        object_prefix = spec.get('object').get('prefix'),
+        secret_name = spec.get('secret_name'),
+        pvc_name = spec.get('pvc_name')
+    )
+    data = yaml.safe_load(text)
+    kopf.adopt(data)
+    logger.debug(f"Generated job: {data}.")
+    api = pk.HTTPClient(pk.KubeConfig.from_env())
+    try:
+        job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
+        job.delete(propagation_policy="Foreground")
+        while True:
+            if not job.exists():
+                break
+    except pk.exceptions.ObjectDoesNotExist:
+        pass
+    pk.Job(api, data).create()
+
 
 
 @kopf.on.create("apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT, "enonic-operator-already-injected": kopf.ABSENT})

@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{name}"
+  namespace: "{namespace}"
+  annotations:
+    enonic-operator-managed: ""
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - image: minio/mc
+        name: mc
+        imagePullPolicy: Always
+        command:
+          - "/bin/sh"
+          - "-c"
+          - |
+            MC_HOST_target=https://$BUCKET_ACCESS_KEY:$BUCKET_SECRET_KEY@$BUCKET_URL \
+            mc cp target/$BUCKET_URL_SUFFIX/$OBJECT_NAME /deploy/ && \
+            rm -fv $(ls -t /deploy/$OBJECT_PREFIX*.jar | tail -n +2)
+        volumeMounts:
+          - name: target-pvc
+            mountPath: /deploy
+        env:
+          - name: BUCKET_URL
+            value: "{url}"
+          - name: BUCKET_URL_SUFFIX
+            value: "{url_sufix}"
+          - name: OBJECT_NAME
+            value: "{object_name}"
+          - name: OBJECT_PREFIX
+            value: "{object_prefix}"
+          - name: BUCKET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{secret_name}"
+                key: access_key
+          - name: BUCKET_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{secret_name}"
+                key: secret_key
+      volumes:
+      - name: target-pvc
+        persistentVolumeClaim:
+          claimName: "{pvc_name}"
