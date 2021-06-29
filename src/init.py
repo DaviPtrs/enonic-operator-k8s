@@ -4,6 +4,12 @@ import logging
 import os
 import yaml
 
+class EnonicXpApp(pk.objects.NamespacedAPIObject):
+    version = "kopf.enonic/v1"
+    endpoint = "enonicxpapps"
+    kind = "EnonicXpApp"
+
+
 def get_template(template_name):
     path = os.path.join(os.path.dirname(__file__), f'templates/{template_name}')
     tmpl = open(path, 'rt').read()
@@ -11,22 +17,30 @@ def get_template(template_name):
 
 @kopf.on.field('batch', 'v1', 'jobs', "status", annotations={"enonic-operator-managed": kopf.PRESENT})
 def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
-    logger.debug(f"New status: {new}")
-    result = new.get('succeeded')
-    if result is not None and result == 1:
-        logger.debug(f"Deleting succeeded {namespace}/{name} job.")
+
+    if 'succeeded' in new.keys() or 'failed' in new.keys():
         api = pk.HTTPClient(pk.KubeConfig.from_env())
-        job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
-        job.delete(propagation_policy="Foreground")
-    else:
-        result = new.get('failed')
+        parent = (EnonicXpApp.objects(api, namespace=namespace).get_by_name(name)).obj
+        obj_name = parent['spec']['object']['name']
+
+        logger.debug(f"New status: {new}")
+        result = new.get('succeeded')
+
         if result is not None and result == 1:
-            logger.error(f"{namespace}/{name} job is failing. Check the logs!")
+            logger.debug(f"Deleting succeeded {namespace}/{name} job.")
+            kopf.event(parent, type='Success', reason='Logging', message=f"{obj_name} installed successfully.")
+            job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
+            job.delete(propagation_policy="Foreground")
+        else:
+            result = new.get('failed')
+            if result is not None and result == 1:
+                kopf.event(parent, type='Failure', reason='Logging', message=f"{obj_name} could not be installed.")
+                logger.error(f"{namespace}/{name} job is failing. Check the logs!")
 
 
 @kopf.on.create('kopf.enonic', 'v1', 'enonicxpapps')
-@kopf.on.update('kopf.enonic', 'v1', 'enonicxpapps')
-def xp_app_handler(spec, name, namespace, logger, **kwargs):
+@kopf.on.field('kopf.enonic', 'v1', 'enonicxpapps', "spec")
+def xp_app_handler(body, spec, name, namespace, logger, **kwargs):
     tmpl = get_template("app-installer-job.yaml")
     text = tmpl.format(
         name = name, 
@@ -45,11 +59,11 @@ def xp_app_handler(spec, name, namespace, logger, **kwargs):
     try:
         job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
         job.delete(propagation_policy="Foreground")
-        while True:
-            if not job.exists():
-                break
+        while job.exists():
+            pass
     except pk.exceptions.ObjectDoesNotExist:
         pass
+    logger.info(f"Creating installer job: {namespace}/{name}.")
     pk.Job(api, data).create()
 
 
