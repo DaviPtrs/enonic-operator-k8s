@@ -15,7 +15,7 @@ def get_template(template_name):
     tmpl = open(path, 'rt').read()
     return tmpl
 
-@kopf.on.field('batch', 'v1', 'jobs', "status", annotations={"enonic-operator-managed": kopf.PRESENT})
+@kopf.on.field('jobs', field="status", annotations={"enonic-operator-managed": kopf.PRESENT})
 def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
 
     if 'succeeded' in new.keys() or 'failed' in new.keys():
@@ -41,7 +41,7 @@ def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
 
 
 @kopf.on.create('kopf.enonic', 'v1', 'enonicxpapps')
-@kopf.on.field('kopf.enonic', 'v1', 'enonicxpapps', "spec")
+@kopf.on.field('enonicxpapps', field="spec")
 def xp_app_handler(body, spec, name, namespace, logger, **kwargs):
     tmpl = get_template("app-installer-job.yaml")
     text = tmpl.format(
