@@ -5,6 +5,8 @@ services:
     container_name: enonic-k8s-operador-dev
     build:
       context: .
+      args:
+        VERSION_TAG: dev
     image: 'enonic-k8s-operador-dev'
     environment:
       DEBUG: 1

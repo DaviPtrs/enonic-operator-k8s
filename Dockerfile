@@ -1,5 +1,7 @@
 FROM python:3.7
 
+ARG VERSION_TAG=latest
+
 WORKDIR /src
 
 ADD requirements.txt /src

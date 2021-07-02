@@ -99,7 +99,8 @@ def init_fn(name, namespace, logger, **kwargs):
     # Sidecar container specs
     debug = str(logger.getEffectiveLevel() == logging.DEBUG)
     tmpl = get_template("sidecar-container.yaml")
-    text = tmpl.format(name=name, debug=debug)
+    image_tag = str(os.getenv("VERSION_TAG", "latest"))
+    text = tmpl.format(name=name, debug=debug, image_tag=image_tag)
     sidecar_container = yaml.safe_load(text)
     logger.debug(f"Preparing sidecar container object: {sidecar_container}")
     # Adds the sidecar container to statefulset object

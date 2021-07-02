@@ -1,5 +1,5 @@
 name: enonic-sidecar
-image: daviptrs/enonic-operator-k8s-sidecar:latest
+image: "daviptrs/enonic-operator-k8s-sidecar:{image_tag}"
 imagePullPolicy: Always
 env:
   - name: DEBUG
