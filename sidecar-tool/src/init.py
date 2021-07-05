@@ -49,6 +49,37 @@ ES_API = f"http://{XP_HOST}:{ES_API_PORT}"
 REPO_API_PORT = int(os.getenv("REPO_API_PORT", 4848))
 REPO_API = f"http://{XP_HOST}:{REPO_API_PORT}"
 
+# Fetch all snapshots and restore all of them
+def fetch_snapshots():
+    log.info("Fetch snapshot list")
+
+    r = req.get(REPO_API + "/repo/snapshot/list", auth=ENONIC_AUTH)
+    if r.status_code == 403:
+        log.error("Auth error")
+        exit(1)
+
+    log.debug(f"Snapshot list: {r.text}")
+    snapshots = json.loads(r.text)["results"]
+    snapshot_ids = list()
+
+    # Getting only the snapshots ids
+    for snapshot in snapshots:
+        snapshot_ids.append(snapshot["name"])
+
+    return snapshot_ids
+
+# Delete snapshots given the list of snapshots ids
+def delete_snapshots(snapshot_ids):
+    payload = {"snapshotNames": snapshot_ids}
+
+    log.info("Deleting remaining snapshots.")
+    r = req.post(REPO_API + "/repo/snapshot/delete", auth=ENONIC_AUTH, json=payload)
+    if r.status_code == 200:
+        log.info("Snapshots deleted")
+    else:
+        log.error(f"Failed to delete snapshots: {r.text}")
+
+    log.debug(f"Snapshots deletion: {r.text}")
 
 # This will fetch all repositories and create a snapshot
 # for each of them, using the Enonic Management API
@@ -125,6 +156,8 @@ def pre_stop():
         log.info("There's no need to take snapshots")
         wait_cluster_health()
     else:
+        log.info("Cleaning old snapshots")
+        delete_snapshots(fetch_snapshots())
         take_snapshot()
 
 # Return a boolean that indicates
@@ -164,19 +197,6 @@ def handle_sigterm(signalNumber, frame):
     exit(0)
 
 
-# Delete snapshots given the list of snapshots ids
-def delete_snapshots(snapshot_ids):
-    payload = {"snapshotNames": snapshot_ids}
-
-    log.info("Deleting remaining snapshots.")
-    r = req.post(REPO_API + "/repo/snapshot/delete", auth=ENONIC_AUTH, json=payload)
-    if r.status_code == 200:
-        log.info("Snapshots deleted")
-    else:
-        log.error(f"Failed to delete snapshots: {r.text}")
-
-    log.debug(f"Snapshots deletion: {r.text}")
-
 # Restore a snapshot given the snapshot id
 def restore_snapshot(snapshot_id):
     payload = {"snapshotName": snapshot_id}
@@ -195,18 +215,7 @@ def restore_snapshot(snapshot_id):
 def restore():
     log.info("Starting to restore snapshots...")
 
-    r = req.get(REPO_API + "/repo/snapshot/list", auth=ENONIC_AUTH)
-    if r.status_code == 403:
-        log.error("Auth error")
-        exit(1)
-
-    log.debug(f"Snapshot list: {r.text}")
-    snapshots = json.loads(r.text)["results"]
-    snapshot_ids = list()
-
-    # Getting only the snapshots ids
-    for snapshot in snapshots:
-        snapshot_ids.append(snapshot["name"])
+    snapshot_ids = fetch_snapshots()
 
     # For each snapshot, restore it
     for snapshot in snapshot_ids:
@@ -259,6 +268,7 @@ def post_start():
     # If is master then restore the snapshots
     if is_master:
         restore()
+        take_snapshot()
     else:
         log.info("No need to restore snapshots.")
 
