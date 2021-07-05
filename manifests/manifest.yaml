@@ -3,35 +3,54 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   namespace: default
-  name: enonic-operator-account
+  name: enonic-op-account
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: enonic-operator-clusterrole
+  name: enonic-op-role-cluster
 rules:
 
   # Framework: knowing which other operators are running (i.e. peering).
-  - apiGroups: [zalando.org]
+  - apiGroups: [kopf.dev]
     resources: [clusterkopfpeerings]
     verbs: [list, watch, patch, get]
+
+  # Framework: runtime observation of namespaces & CRDs (addition/deletion).
   - apiGroups: [apiextensions.k8s.io]
     resources: [customresourcedefinitions]
-    verbs: [list, get]
+    verbs: [list, watch]
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [list, watch]
 
   # Framework: posting the events about the handlers progress/errors.
-  - apiGroups: [events.k8s.io]
-    resources: [events]
-    verbs: [create]
-  - apiGroups: [""]
+  - apiGroups: ["", "events.k8s.io"]
     resources: [events]
     verbs: [create]
 
-  # Application: access for management cluster-wide.
+  # Framework: admission webhook configuration management.
+  - apiGroups: [admissionregistration.k8s.io/v1, admissionregistration.k8s.io/v1beta1]
+    resources: [validatingwebhookconfigurations, mutatingwebhookconfigurations]
+    verbs: [create, patch]
+
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: [get, list, watch, create, delete]
+
+  - apiGroups: ["kopf.enonic"]
+    resources: ["enonicxpapps"]
+    verbs: [get, list, watch, patch, update]
+
+  - apiGroups: ["batch", "extensions"]
+    resources: ["jobs"]
+    verbs: [get, list, watch, patch, create, delete, update]
+
   - apiGroups: ["apps"]
     resources: ["statefulsets"]
     verbs: [get, list, watch, patch]
+
   - apiGroups: ["apps"]
     resources: ["statefulsets/status"]
     verbs: [get, list, watch, patch]
@@ -40,15 +59,58 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: enonic-operator-bind
+  name: enonic-op-rolebinding-cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: enonic-operator-clusterrole
+  name: enonic-op-role-cluster
 subjects:
   - kind: ServiceAccount
-    name: enonic-operator-account
+    name: enonic-op-account
     namespace: default
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: enonicxpapps.kopf.enonic
+spec:
+  scope: Namespaced
+  group: kopf.enonic
+  names:
+    kind: EnonicXpApp
+    plural: enonicxpapps
+    singular: enonicxpapp
+    shortNames:
+      - xpapp
+      - xpapps
+      - exas
+      - exa
+      - xapp
+      - xapps
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      additionalPrinterColumns:
+        - name: Latest Jar
+          type: string
+          jsonPath: .spec.object.name
+          description: Latest jar file that was tried to be installed.
+        - name: Status
+          type: string
+          jsonPath: .status.xp_app_handler/spec
+          description: Jar latest installation status
 
 ---
 apiVersion: apps/v1

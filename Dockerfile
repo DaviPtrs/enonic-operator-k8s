@@ -14,4 +14,6 @@ ADD entrypoint.sh /
 
 ADD ./src/*.py /src/
 
+ADD ./src/templates /src/templates
+
 CMD /entrypoint.sh
