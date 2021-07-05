@@ -17,7 +17,7 @@ spec:
       serviceAccountName: enonic-op-dev-account
       containers:
       - name: operator
-        image: "localhost:5000/enonic-op:latest"
+        image: daviptrs/enonic-operator-k8s:dev
         imagePullPolicy: Always
         env:
           - name: DEBUG
