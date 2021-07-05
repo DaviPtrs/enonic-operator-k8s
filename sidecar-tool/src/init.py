@@ -51,7 +51,7 @@ REPO_API = f"http://{XP_HOST}:{REPO_API_PORT}"
 
 # Fetch all snapshots and restore all of them
 def fetch_snapshots():
-    log.info("Fetch snapshot list")
+    log.info("Fetching snapshot list")
 
     r = req.get(REPO_API + "/repo/snapshot/list", auth=ENONIC_AUTH)
     if r.status_code == 403:
