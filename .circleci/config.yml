@@ -58,7 +58,8 @@ jobs:
       - run:
           name: Build Docker image
           command: |
-            docker build . -t $OPERATOR_IMAGE:latest
+            VERSION=${CIRCLE_TAG/operator-v/''}
+            docker build . -t $OPERATOR_IMAGE:latest --build-arg VERSION_TAG=$VERSION
       - run:
           name: Archive Docker image
           command: docker save -o operator.tar $OPERATOR_IMAGE

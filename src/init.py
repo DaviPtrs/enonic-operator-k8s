@@ -1,5 +1,75 @@
 import kopf
 import pykube as pk
+import logging
+import os
+import yaml
+
+class EnonicXpApp(pk.objects.NamespacedAPIObject):
+    version = "kopf.enonic/v1"
+    endpoint = "enonicxpapps"
+    kind = "EnonicXpApp"
+
+
+def get_template(template_name):
+    path = os.path.join(os.path.dirname(__file__), f'templates/{template_name}')
+    tmpl = open(path, 'rt').read()
+    return tmpl
+
+@kopf.on.field('jobs', field="status", annotations={"enonic-operator-managed": kopf.PRESENT})
+def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
+
+    if 'succeeded' in new.keys() or 'failed' in new.keys():
+        api = pk.HTTPClient(pk.KubeConfig.from_env())
+        parent = (EnonicXpApp.objects(api, namespace=namespace).get_by_name(name))
+        obj_name = parent.obj['spec']['object']['name']
+
+        logger.debug(f"New status: {new}")
+        result = new.get('succeeded')
+
+        if result is not None and result == 1:
+            logger.debug(f"Deleting succeeded {namespace}/{name} job.")
+            kopf.event(parent.obj, type='Success', reason='Logging', message=f"{obj_name} installed successfully.")
+            parent.patch({'status': {'xp_app_handler/spec': "Success"}})
+            job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
+            job.delete(propagation_policy="Foreground")
+        else:
+            result = new.get('failed')
+            if result is not None and result == 1:
+                kopf.event(parent.obj, type='Failure', reason='Logging', message=f"{obj_name} could not be installed.")
+                parent.patch({'status': {'xp_app_handler/spec': "Failure"}})
+                logger.error(f"{namespace}/{name} job is failing. Check the logs!")
+
+
+@kopf.on.create('kopf.enonic', 'v1', 'enonicxpapps')
+@kopf.on.field('enonicxpapps', field="spec")
+def xp_app_handler(body, spec, name, namespace, logger, **kwargs):
+    tmpl = get_template("app-installer-job.yaml")
+    text = tmpl.format(
+        name = name, 
+        namespace = namespace,
+        url = spec.get('bucket').get('url'),
+        url_sufix = spec.get('bucket').get('url_sufix'),
+        object_name = spec.get('object').get('name'),
+        object_prefix = spec.get('object').get('prefix'),
+        secret_name = spec.get('secret_name'),
+        pvc_name = spec.get('pvc_name')
+    )
+    data = yaml.safe_load(text)
+    kopf.adopt(data)
+    logger.debug(f"Generated job: {data}.")
+    api = pk.HTTPClient(pk.KubeConfig.from_env())
+    try:
+        job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
+        job.delete(propagation_policy="Foreground")
+        while job.exists():
+            pass
+    except pk.exceptions.ObjectDoesNotExist:
+        pass
+    logger.info(f"Creating installer job: {namespace}/{name}.")
+    pk.Job(api, data).create()
+
+    return "Pending"
+
 
 
 @kopf.on.create("apps", "v1", "statefulsets", annotations={"enonic-operator-managed": kopf.PRESENT, "enonic-operator-already-injected": kopf.ABSENT})
@@ -27,19 +97,11 @@ def init_fn(name, namespace, logger, **kwargs):
     spec["volumes"].append(exit_volume)
 
     # Sidecar container specs
-    sidecar_container = {
-        "name": "enonic-sidecar",
-        "image": "daviptrs/enonic-operator-k8s-sidecar:latest",
-        "imagePullPolicy": "Always",
-        "env": [
-            {"name": "DEBUG", "value": "False"},
-            {
-                "name": "ENONIC_AUTH",
-                "valueFrom": {"secretKeyRef": {"name": f"{name}-auth", "key": "auth"}},
-            },
-        ],
-        "volumeMounts": [{"name": "exit-folder", "mountPath": "/exit"}],
-    }
+    debug = str(logger.getEffectiveLevel() == logging.DEBUG)
+    tmpl = get_template("sidecar-container.yaml")
+    image_tag = str(os.getenv("VERSION_TAG", "latest"))
+    text = tmpl.format(name=name, debug=debug, image_tag=image_tag)
+    sidecar_container = yaml.safe_load(text)
     logger.debug(f"Preparing sidecar container object: {sidecar_container}")
     # Adds the sidecar container to statefulset object
     spec["containers"].append(sidecar_container)

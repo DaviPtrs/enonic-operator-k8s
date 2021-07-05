@@ -1,0 +1,14 @@
+name: enonic-sidecar
+image: "daviptrs/enonic-operator-k8s-sidecar:{image_tag}"
+imagePullPolicy: Always
+env:
+  - name: DEBUG
+    value: "{debug}"
+  - name: ENONIC_AUTH
+    valueFrom:
+      secretKeyRef:
+        key: auth
+        name: "{name}-auth"
+volumeMounts:
+  - mountPath: /exit
+    name: exit-folder
