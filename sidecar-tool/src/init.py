@@ -250,6 +250,7 @@ def restore():
     # For each snapshot, restore it
     for snapshot in snapshot_ids:
         restore_snapshot(snapshot)
+        time.sleep(5)
         wait_ready_cluster()
 
     # Delete restored snapshots
@@ -277,6 +278,8 @@ def post_start():
     # If is master then restore the snapshots
     if is_master:
         restore()
+        time.sleep(5)
+        wait_ready_cluster()
         take_snapshot()
     else:
         log.info("No need to restore snapshots.")
