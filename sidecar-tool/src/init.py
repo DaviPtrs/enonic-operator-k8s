@@ -218,22 +218,6 @@ def restore_snapshot(snapshot_id):
     else:
         log.error(f"Failed to restore {snapshot_id}: {r.text}")
 
-
-# Fetch all snapshots and restore all of them
-def restore():
-    log.info("Starting to restore snapshots...")
-
-    snapshot_ids = fetch_snapshots()
-
-    # For each snapshot, restore it
-    for snapshot in snapshot_ids:
-        restore_snapshot(snapshot)
-        time.sleep(3)
-
-    # Delete restored snapshots
-    delete_snapshots(snapshot_ids)
-
-
 # Check if the cluster is ready to receive requests
 # Return a boolean based on Monitoring API status code
 def check_cluster_ready():
@@ -255,6 +239,21 @@ def wait_ready_cluster():
         if check_cluster_ready():
             break
         time.sleep(10)
+
+
+# Fetch all snapshots and restore all of them
+def restore():
+    log.info("Starting to restore snapshots...")
+
+    snapshot_ids = fetch_snapshots()
+
+    # For each snapshot, restore it
+    for snapshot in snapshot_ids:
+        restore_snapshot(snapshot)
+        wait_ready_cluster()
+
+    # Delete restored snapshots
+    delete_snapshots(snapshot_ids)
 
 
 # Define all tasks to be performed just on the application startup
