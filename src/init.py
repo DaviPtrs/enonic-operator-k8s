@@ -5,6 +5,8 @@ import kopf
 import pykube as pk
 import yaml
 
+import time
+
 
 class EnonicXpApp(pk.objects.NamespacedAPIObject):
     version = "kopf.enonic/v1"
@@ -78,7 +80,7 @@ def xp_app_handler(body, spec, name, namespace, logger, **kwargs):
         job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
         job.delete(propagation_policy="Foreground")
         while job.exists():
-            pass
+            time.sleep(1)
     except pk.exceptions.ObjectDoesNotExist:
         pass
     logger.info(f"Creating installer job: {namespace}/{name}.")
