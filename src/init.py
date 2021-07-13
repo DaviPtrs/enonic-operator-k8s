@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 import kopf
 import pykube as pk
@@ -53,6 +54,7 @@ def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
                 )
                 parent.patch({"status": {"xp_app_handler/spec": "Failure"}})
                 logger.error(f"{namespace}/{name} job is failing. Check the logs!")
+        api.session.close()
 
 
 @kopf.on.create("kopf.enonic", "v1", "enonicxpapps")
@@ -77,11 +79,12 @@ def xp_app_handler(body, spec, name, namespace, logger, **kwargs):
         job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
         job.delete(propagation_policy="Foreground")
         while job.exists():
-            pass
+            time.sleep(1)
     except pk.exceptions.ObjectDoesNotExist:
         pass
     logger.info(f"Creating installer job: {namespace}/{name}.")
     pk.Job(api, data).create()
+    api.session.close()
 
     return "Pending"
 

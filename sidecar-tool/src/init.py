@@ -219,21 +219,6 @@ def restore_snapshot(snapshot_id):
         log.error(f"Failed to restore {snapshot_id}: {r.text}")
 
 
-# Fetch all snapshots and restore all of them
-def restore():
-    log.info("Starting to restore snapshots...")
-
-    snapshot_ids = fetch_snapshots()
-
-    # For each snapshot, restore it
-    for snapshot in snapshot_ids:
-        restore_snapshot(snapshot)
-        time.sleep(3)
-
-    # Delete restored snapshots
-    delete_snapshots(snapshot_ids)
-
-
 # Check if the cluster is ready to receive requests
 # Return a boolean based on Monitoring API status code
 def check_cluster_ready():
@@ -257,6 +242,40 @@ def wait_ready_cluster():
         time.sleep(10)
 
 
+# Fetch all snapshots and restore all of them
+def restore():
+    log.info("Starting to restore snapshots...")
+
+    snapshot_ids = fetch_snapshots()
+
+    # Move enonic cms snapshot to the end
+    for i, snapshot in enumerate(snapshot_ids):
+        if "com.enonic.cms" in snapshot:
+            snapshot_ids.append(snapshot_ids.pop(i))
+            break
+
+    # Move auditlog snapshot to the end
+    for i, snapshot in enumerate(snapshot_ids):
+        if "system.auditlog" in snapshot:
+            snapshot_ids.append(snapshot_ids.pop(i))
+            break
+
+    # Move repo snapshot to the beggining
+    for i, snapshot in enumerate(snapshot_ids):
+        if "system-repo" in snapshot:
+            snapshot_ids.insert(0, snapshot_ids.pop(i))
+            break
+
+    # For each snapshot, restore it
+    for snapshot in snapshot_ids:
+        restore_snapshot(snapshot)
+        time.sleep(5)
+        wait_ready_cluster()
+
+    # Delete restored snapshots
+    delete_snapshots(snapshot_ids)
+
+
 # Define all tasks to be performed just on the application startup
 def post_start():
     log.debug("post_start function starting")
@@ -278,6 +297,8 @@ def post_start():
     # If is master then restore the snapshots
     if is_master:
         restore()
+        time.sleep(5)
+        wait_ready_cluster()
         take_snapshot()
     else:
         log.info("No need to restore snapshots.")
