@@ -2,12 +2,12 @@
 INITPATH=$PWD/init.py
 
 if [[ DEBUG -eq 1 ]]; then
-    kopf run "$INITPATH" --verbose
+    kopf run -A "$INITPATH" --verbose
     # echo "debug"
 elif [[ QUIET -eq 1 ]]; then
-    kopf run "$INITPATH" --quiet
+    kopf run -A "$INITPATH" --quiet
     # echo "quiet"
 else
     # echo "normal"
-    kopf run "$INITPATH" 
+    kopf run -A "$INITPATH" 
 fi
