@@ -247,6 +247,24 @@ def restore():
 
     snapshot_ids = fetch_snapshots()
 
+    # Move enonic cms snapshot to the end
+    for i, snapshot in enumerate(snapshot_ids):
+        if "com.enonic.cms" in snapshot:
+            snapshot_ids.append(snapshot_ids.pop(i))
+            break
+
+    # Move auditlog snapshot to the end
+    for i, snapshot in enumerate(snapshot_ids):
+        if "system.auditlog" in snapshot:
+            snapshot_ids.append(snapshot_ids.pop(i))
+            break
+    
+    # Move repo snapshot to the beggining
+    for i, snapshot in enumerate(snapshot_ids):
+        if "system-repo" in snapshot:
+            snapshot_ids.insert(0, snapshot_ids.pop(i))
+            break
+
     # For each snapshot, restore it
     for snapshot in snapshot_ids:
         restore_snapshot(snapshot)
