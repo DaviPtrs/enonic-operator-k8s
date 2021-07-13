@@ -1,11 +1,10 @@
 import logging
 import os
+import time
 
 import kopf
 import pykube as pk
 import yaml
-
-import time
 
 
 class EnonicXpApp(pk.objects.NamespacedAPIObject):

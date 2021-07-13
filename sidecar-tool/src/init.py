@@ -218,6 +218,7 @@ def restore_snapshot(snapshot_id):
     else:
         log.error(f"Failed to restore {snapshot_id}: {r.text}")
 
+
 # Check if the cluster is ready to receive requests
 # Return a boolean based on Monitoring API status code
 def check_cluster_ready():
@@ -258,7 +259,7 @@ def restore():
         if "system.auditlog" in snapshot:
             snapshot_ids.append(snapshot_ids.pop(i))
             break
-    
+
     # Move repo snapshot to the beggining
     for i, snapshot in enumerate(snapshot_ids):
         if "system-repo" in snapshot:
