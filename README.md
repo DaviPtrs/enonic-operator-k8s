@@ -5,7 +5,9 @@ Enonic operator (unofficial) is a Kubernetes operator that allows Enonic XP apps
 - [Enonic XP Operator for k8s](#enonic-xp-operator-for-k8s)
 - [How does it work](#how-does-it-work)
 - [Getting started](#getting-started)
-  - [Installing the operator](#installing-the-operator)
+  - [How to install](#how-to-install)
+    - [Helm chart (recommended)](#helm-chart-recommended)
+    - [kubectl](#kubectl)
   - [Making it run with Enonic XP applications](#making-it-run-with-enonic-xp-applications)
     - [Initial Considerations](#initial-considerations)
     - [Steps](#steps)
@@ -22,22 +24,37 @@ This operator injects a sidecar container that performs snapshots on tier down a
 
 # Getting started
 
-## Installing the operator
+## How to install
 
--   First install kopf operator peering (to prevent duplicated operators from doing the same thing at the same time)
+First of all, install the KOPF operator peering resources (to prevent duplicated operators from doing the same thing at the same time)
 
-    You maybe will need to run this command twice to make sure that all resources are created.
+You maybe will need to run this command twice to make sure that all resources are existent.
 
-    ```bash
-    kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/init/peering.yaml
-    ```
+```bash
+kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/init/peering.yaml
+```
+
+### Helm chart (recommended)
+
+If you want to customize your operator deploy specs, see the example [values.yaml](chart/values.yaml)
+
+- Add my chart repo
+  ```bash
+  helm repo add daviptrs-charts https://daviptrs.github.io/helm-charts/
+  ```
+- Install a new release
+  ```bash
+  helm install enonic-operator --wait daviptrs-charts/enonic-operator
+  ```
 
 
--   Install the operator by the following command
+### kubectl
+
+- Install the operator by the following command
     
-    ```bash
-    kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/manifests/manifest.yaml
-    ```
+  ```bash
+  kubectl apply -f https://raw.githubusercontent.com/DaviPtrs/enonic-operator-k8s/main/manifests/manifest.yaml
+  ```
 
 
 ## Making it run with Enonic XP applications
