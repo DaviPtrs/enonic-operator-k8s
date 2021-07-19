@@ -1,8 +1,8 @@
 image:
   pullPolicy: Always
-  tag: "dev"
+  # tag: "dev"
 
-logging: DEBUG # DEBUG or QUIET
+# logging: DEBUG # DEBUG or QUIET
 
 imagePullSecrets: []
 
