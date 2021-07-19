@@ -42,11 +42,14 @@ If you want to customize your operator deploy specs, see the example [values.yam
   ```bash
   helm repo add daviptrs-charts https://daviptrs.github.io/helm-charts/
   ```
+- Perform repo update
+  ```bash
+  helm repo update
+  ```
 - Install a new release
   ```bash
   helm install enonic-operator --wait daviptrs-charts/enonic-operator
   ```
-
 
 ### kubectl
 
