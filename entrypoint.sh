@@ -1,14 +1,11 @@
 #!/bin/bash
-#TODO: Create a var to store common arguments
 INITPATH=$PWD/init.py
+COMMON="kopf run --liveness=http://0.0.0.0:8080/healthz -A $INITPATH"
 
 if [[ DEBUG -eq 1 ]]; then
-    kopf run --liveness=http://0.0.0.0:8080/healthz -A "$INITPATH" --verbose
-    # echo "debug"
+    $COMMON --verbose
 elif [[ QUIET -eq 1 ]]; then
-    kopf run --liveness=http://0.0.0.0:8080/healthz -A "$INITPATH" --quiet
-    # echo "quiet"
+    $COMMON --quiet
 else
-    # echo "normal"
-    kopf run --liveness=http://0.0.0.0:8080/healthz -A "$INITPATH"
+    $COMMON
 fi
