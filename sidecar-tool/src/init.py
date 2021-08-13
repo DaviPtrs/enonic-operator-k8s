@@ -96,7 +96,7 @@ def take_snapshot():
     # Getting the repo ids
     for repo in response["repositories"]:
         repo_list.append(repo["id"])
-    
+
     repo_list.reverse()
 
     # For each repository, snapshoot it!
