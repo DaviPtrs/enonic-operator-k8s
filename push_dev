@@ -3,4 +3,4 @@
 docker build . -f Dockerfile -t daviptrs/enonic-operator-k8s:dev --build-arg VERSION_TAG=dev
 docker push daviptrs/enonic-operator-k8s:dev
 
-kubectl rollout restart deployment enonic-op-dev
+kubectl rollout restart deployment enonic-operator
