@@ -40,7 +40,7 @@ def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
                 reason="Logging",
                 message=f"{obj_name} installed successfully.",
             )
-            parent.patch({"status": {"xp_app_handler/spec": "Success"}})
+            parent.patch({"status": {"xp_app_handler": "Success"}})
             job = pk.Job.objects(api, namespace=namespace).get_by_name(name)
             job.delete(propagation_policy="Foreground")
         else:
@@ -52,7 +52,7 @@ def installed_xp_app_handler(name, namespace, logger, new, **kwargs):
                     reason="Logging",
                     message=f"{obj_name} could not be installed.",
                 )
-                parent.patch({"status": {"xp_app_handler/spec": "Failure"}})
+                parent.patch({"status": {"xp_app_handler": "Failure"}})
                 logger.error(f"{namespace}/{name} job is failing. Check the logs!")
         api.session.close()
 
