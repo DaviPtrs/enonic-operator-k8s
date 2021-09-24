@@ -107,9 +107,17 @@ spec:
           type: string
           jsonPath: .spec.object.name
           description: Latest jar file that was tried to be installed.
+        - name: Bucket path
+          type: string
+          jsonPath: .spec.bucket.url_sufix
+          description: Bucket folder where the jar will be downloaded from.
+        - name: Bucket URL
+          type: string
+          jsonPath: .spec.bucket.url
+          description: Bucket URL where the jar will be downloaded from.
         - name: Status
           type: string
-          jsonPath: .status.xp_app_handler/spec
+          jsonPath: .status.xp_app_handler
           description: Jar latest installation status
 
 ---
