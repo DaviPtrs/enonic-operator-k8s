@@ -216,7 +216,9 @@ def restore_snapshot(snapshot_id):
     retry_errors = [400, 401, 403]
 
     for _ in range(retry_count):
-        r = req.post(REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload)
+        r = req.post(
+            REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload
+        )
 
         log.debug(f"Restore request result: {r.text}")
 
