@@ -209,16 +209,27 @@ def handle_sigterm(signalNumber, frame):
 # Restore a snapshot given the snapshot id
 def restore_snapshot(snapshot_id):
     payload = {"snapshotName": snapshot_id}
-
     log.info(f"Restoring snapshot. Snapshot name: {snapshot_id}")
-    r = req.post(REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload)
 
-    log.debug(f"Restore request result: {r.text}")
+    retry_count = 3
+    retry_interval = 5
+    retry_errors = [400, 401, 403]
 
-    if r.status_code == 200:
-        log.info(f"Snapshot {snapshot_id} restored!")
-    else:
-        log.error(f"Failed to restore {snapshot_id}: {r.text}")
+    for _ in range(retry_count):
+        r = req.post(REPO_API + "/repo/snapshot/restore", auth=ENONIC_AUTH, json=payload)
+
+        log.debug(f"Restore request result: {r.text}")
+
+        if r.status_code == 200:
+            log.info(f"Snapshot {snapshot_id} restored!")
+            break
+        else:
+            log.error(f"Failed to restore {snapshot_id}: {r.text}")
+            if r.status_code in retry_errors:
+                log.info(f"Retrying in {retry_interval} seconds...")
+                time.sleep(retry_interval)
+            else:
+                break
 
 
 # Check if the cluster is ready to receive requests
